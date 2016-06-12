@@ -47,6 +47,15 @@ Such asynchronous function must resume the execution as follows:
       knysa_my_func(...); or
       ret = knysa_my_func(...)
    object call is supported, i.e. myObj.knysa_my_func(...)
+   The following are not supported:
+      1. if (knysa_my_func(...)) ...
+         instead do:
+            val = knysa_my_func(...);
+            if (val) ...
+      2. var1 = a1 * knysa_my_func(...)
+         instead do:
+            val = knysa_my_func(...);
+            var1 = a1 * val;
 5. all variables must be declared at the beginning, including the variable err in catch(err).
 ```
 ## Unsupported

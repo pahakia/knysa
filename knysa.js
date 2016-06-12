@@ -67,18 +67,15 @@ function Flow(flowData, knysa, pid) {
     return scopes[scopes.length - 1];
   }  
   function scopeEnd(scope, method, control) {
-    console.log('scopeEnd0: ' + scope);
     for (var i = index + 1; i < methods.length; i++) {
         var m2 = methods[i];
-        console.log('scopeEnd: ' + scope + ', i=' + i + ', m2=' + m2);
         if (m2.match(new RegExp("^n\\d+_" + control + "_" + scope))) {
             index = i + 1;
-            console.log('done ' + control + ': ' + method + ', scopes: ' + scopes);
+            // console.log('done ' + control + ': ' + method + ', scopes: ' + scopes);
             run();
             return;
         }
     }
-    console.log('scopeEnd: ' + scope);
     throw new Error("matching end not found for: " + method + ", scope=" + scope + ", methods: " + methods);
   }
 
@@ -88,13 +85,13 @@ function Flow(flowData, knysa, pid) {
   this.isDone = isDone;
   var resume = function resume(data) {
     if (isDone()) {
-        console.log("flow done (resume): " + id + ", scopes:" + scopes + ", methods: " + methods);
+        // console.log("flow done (resume): " + id + ", scopes:" + scopes + ", methods: " + methods);
         return;
     }
     if (data != null && this.retCallback != null) {
-      console.log('set data: ' + this.retCallback + '(' + data + ')');
+      // console.log('set data: ' + this.retCallback + '(' + data + ')');
       this.retCallback(data);
-      console.log('set data: ' + this.retCallback + ' = ' + JSON.stringify(flowData));
+      // console.log('set data: ' + this.retCallback + ' = ' + JSON.stringify(flowData));
       this.retCallback = null;
     }
     index++;
@@ -166,16 +163,16 @@ function Flow(flowData, knysa, pid) {
     var scope = currentScope();
     //console.log("index: " + index + ", method: " + method + ", scope: " + scope + ", methods: " + methods);
     if (method.match(/^n\d+_break/)) {
-      console.log('break: ' + method);
+      // console.log('break: ' + method);
       broken = method;
       handleBreak(method, scope);
     } else if (method.match(/^n\d+_try/)) {
-        console.log('try: ' + method + ', scopes: ' + scopes);
+        // console.log('try: ' + method + ', scopes: ' + scopes);
         scopes.push(method);
         resume();
         return;
     } else if (method.match(/^n\d+_catch/)) {
-        console.log('catch: ' + method + ', scopes: ' + scopes);
+        // console.log('catch: ' + method + ', scopes: ' + scopes);
         for (var i = index + 1; i < methods.length; i++) {
             var m2 = methods[i];
             if (m2.match(new RegExp("^n\\d+_finally_" + scope))) {
@@ -193,13 +190,13 @@ function Flow(flowData, knysa, pid) {
         }
         throw new Error("matching try not found for: " + method + ", scope=" + scope + ", methods: " + methods);
     } else if (method.match(/^n\d+_finally/)) {
-        console.log('finally: ' + method + ', scopes: ' + scopes);
+        // console.log('finally: ' + method + ', scopes: ' + scopes);
         scopes.pop();  // remove n\d+_try or n\d+_catch
         scopes.push(method);
         resume();
         return;
     } else if (method.match(new RegExp('^n\\d+_endtry_n\\d+_try$'))) {
-        console.log('endtry: ' + method + ', scopes: ' + scopes + ', error=' + error + ', broken=' + broken);
+        // console.log('endtry: ' + method + ', scopes: ' + scopes + ', error=' + error + ', broken=' + broken);
         if (error != null) {
             scopes.pop();
             scope = currentScope();
@@ -220,7 +217,7 @@ function Flow(flowData, knysa, pid) {
             return;
         }
     } else if (method.match(new RegExp('^n\\d+_endwhile_' + scope))) {
-      console.log('endwhile: ' + method);
+      // console.log('endwhile: ' + method);
       for (var i = index - 1; i >= 0; i--) {
         var m2 = methods[i];
         if (m2 == scope) {
@@ -233,7 +230,7 @@ function Flow(flowData, knysa, pid) {
       throw new Error("endwhile reached but while not found: " + method + ", scope=" + scope
             + ", methods: " + methods);
     } else if (method.match(/^n[0-9]+_else_n/)) {
-        console.log('else: ' + method + ', scope: ' + scope);
+        // console.log('else: ' + method + ', scope: ' + scope);
         var pos = method.lastIndexOf("_n");
         var nth = method.substring(pos + 1);
         if (scope = nth) {
@@ -243,7 +240,7 @@ function Flow(flowData, knysa, pid) {
         }
         throw new Error("no matching if for else: " + m + ", scope=" + scope + ", methods: " + methods);
     } else if (method.match(/^n[0-9]+_endif_n/)) {
-        console.log('endif: ' + method + ', scope: ' + scope);
+        // console.log('endif: ' + method + ', scope: ' + scope);
         var pos = method.lastIndexOf("_n");
         var nth = method.substring(pos + 1);
         if (scope == nth) {
@@ -254,7 +251,7 @@ function Flow(flowData, knysa, pid) {
         throw new Error("no matching if for endif: " + method + ", scope=" + scope + ", methods: " + methods);
     }
     
-    console.log("begin method: " + method);
+    // console.log("begin method: " + method);
     var ret;
     try {
       ret = flowData[method](thisFlow);
@@ -263,11 +260,11 @@ function Flow(flowData, knysa, pid) {
       // console.log('caught err: ' + method + ', scopes: ' + scopes + " " + err.stack);
       handleError(method, scope);
     }
-    console.log("done method: " + method + ", ret:" + ret + ", type:" + typeof(ret));
+    // console.log("done method: " + method + ", ret:" + ret + ", type:" + typeof(ret));
     if (method.match(/^n[0-9]+_async/)) {
       return;
     } else if (method.match(/^n[0-9]+_if/) || method.match(/^n[0-9]+_while/)) {
-        console.log("if/while: " + method + ', scopes: ' + scopes);
+        // console.log("if/while: " + method + ', scopes: ' + scopes);
         if (!(typeof ret == "boolean")) {
 //            throw new Error("method is \"if/while\" but did not return boolean! " + method + ", ret:" + ret + ", type:" + typeof(ret));
         }
@@ -278,7 +275,7 @@ function Flow(flowData, knysa, pid) {
         } else if (method.match(/^n[0-9]+_if/)) {
             for (var i = index + 1; i < methods.length; i++) {
                 var m2 = methods[i];
-                console.log("looking for matching else/endif: ^n[0-9]+_endif_" + method + ', now: ' + m2);
+                // console.log("looking for matching else/endif: ^n[0-9]+_endif_" + method + ', now: ' + m2);
                 if (m2.match(new RegExp("^n[0-9]+_else_" + method))) {
                     scopes.push(method);
                     index = i + 1;
@@ -293,11 +290,11 @@ function Flow(flowData, knysa, pid) {
             throw new Error("matching end not found for: " + method + ", scope=" + scope + ", methods: "
                     + methods);
         } else if (method.match(/^n[0-9]+_while/)) {
-            console.log('find endwhile: ' + method);
+            // console.log('find endwhile: ' + method);
             scopeEnd(method, method, "endwhile");
             return;
         }
-        console.log('finish if/while: ' + method);
+        // console.log('finish if/while: ' + method);
     } else if (method.match(/^n[0-9]+_sleep/)) {
         if (!(typeof ret ==='number') || ret <= 0 ) {
             throw new Error("wait must return int or long: " + method + ", ret=" + ret + ", scope=" + scope + ", methods: "
@@ -324,9 +321,9 @@ function Flow(flowData, knysa, pid) {
   this.fork = fork;
   
   var open = function open(url) {
-    console.log('knysa.page: ' + knysa.page + ", url=" + url);
+    // console.log('knysa.page: ' + knysa.page + ", url=" + url);
     knysa.page.open(url, function(status) {
-      console.log(url + ': ' + status);
+      // console.log(url + ': ' + status);
       try {
         resume();
       } catch (err) {
@@ -339,7 +336,7 @@ function Flow(flowData, knysa, pid) {
   var exists = function exists(selector) {
     return knysa.page.evaluate(function(selector) {
       try {
-        console.log("exists selector: " + selector);
+        // console.log("exists selector: " + selector);
         return document.querySelector(selector) != null;
       } catch (err) {
         console.log("error selecting " + selector + ":" + err.stack);
@@ -352,7 +349,7 @@ function Flow(flowData, knysa, pid) {
   var click = function click(selector) {  // depends on jquery
     return knysa.page.evaluate(function(selector) {
       try {
-        console.log("click selector: " + selector);
+        // console.log("click selector: " + selector);
         return $(selector).click();
       } catch (err) {
         console.log("error clicking " + selector + ":" + err.stack);
@@ -484,7 +481,7 @@ function Flow(flowData, knysa, pid) {
     }
     var clientUtilsPath = './clientutils.js';
     if (true === knysa.page.injectJs(clientUtilsPath)) {
-        console.log("Successfully injected client-side utilities", "debug");
+        // console.log("Successfully injected client-side utilities", "debug");
     } else {
         console.log("Failed to inject client-side utilities");
     }
@@ -529,10 +526,10 @@ function knysa() {
   var page = webPage.create();
   this.page = page;
   page.onConsoleMessage = function(msg, lineNum, sourceId) {
-    console.log('CONSOLE: ' + msg + ' (from line #' + lineNum + ' in "' + sourceId + '")');
+    console.log('CONSOLE: ' + msg);
   };
   page.onCallback = function(data) {
-    console.log('onCallback: ' + JSON.stringify(data));
+    // console.log('onCallback: ' + JSON.stringify(data));
     if (data.kflowId != null) {
       knysa.prototype.resume.call(null, data.kflowId, data);
     }
@@ -542,8 +539,8 @@ function knysa() {
   }
 }
 knysa.prototype.knysa_exec = function knysa_exec(flowData) {
-  console.log('flowData: ' + JSON.stringify(flowData));
-  console.log('this: ' + JSON.stringify(this));
+  // console.log('flowData: ' + JSON.stringify(flowData));
+  // console.log('this: ' + JSON.stringify(this));
   var flow = new Flow(flowData, this);
   flow.run();
 }

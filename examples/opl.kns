@@ -1,0 +1,610 @@
+var system = require('system');
+var fs = require('fs');
+var tomorrow = false;
+var username, password;
+var today = new Date();
+var thisDay = today.getDate(); // [1-31]
+var thisMonth = today.getMonth(); // [0-11]
+var thisYear = today.getFullYear(); // 4 digits
+var dtstr,filename;
+var headStr;
+var totalBooks = 0, totalHolds = 0;
+var sleepTime;
+var checkedOutRet;
+var renewedStr = "";
+var dateStr, renewed, renewBooks;
+var i, ix;
+var numPages;
+var checkedOutRet;
+var onholdRet;
+var renewResult, oneRenewResult;
+if (system.args.length < 3) {
+  //console.log('phantomjs opl.js user-name password [tomorrow]');
+  console.log('please supply required and optional arguments: user-name password [tomorrow]');
+  phantom.exit();
+}
+
+username = system.args[1];
+password = system.args[2];
+//console.log('username: ' + username + ' password: ' + password);
+if (system.args.length > 3) {
+  tomorrow = true;
+}
+
+
+function padNum(num) {
+  return num < 10 ? ('0' + num) : num
+}
+
+function date2Str(year, month, day) {
+  return year + '-' + padNum(month+1) + '-' + padNum(day);
+}
+
+dtstr = date2Str(thisYear, thisMonth, thisDay);
+filename = 'opl/opl-' + dtstr + '.html';
+headStr = '<html><body><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />\n' +
+'<style type="text/css">table { border-spacing:0px; border-collapse:collapse;} \n' +
+'table td {border:1px solid #999;}</style>\n';
+fs.write(filename, headStr);
+
+
+kflow.knysa_open("https://ottawa.bibliocommons.com/checkedout/index/overdue?mobile=0");
+
+console.log('***********: 0');
+kflow.render("images/step0.png");
+
+kflow.fill('form.loginForm.left',
+            { 'name' : username,
+                'user_pin' : password }, false);
+
+console.log('***********: 1');
+kflow.render("images/step1.png");
+
+kflow.click('input[value="Log In"]');
+
+console.log('***********: 2');
+kflow.render("images/step2.png");
+
+function ready(kflow) {
+  var ready = kflow.evaluate(function() {
+    var arr = document.querySelectorAll("a");
+
+    for (var i=0; i < arr.length; i++) {
+      if (arr[i].getAttribute('data-section') == "fines" && arr[i].getAttribute('href') == "/fines") {
+        return true;
+      }
+    }
+  });
+  return ready;
+}
+
+sleepTime = 20000;
+while (!ready(kflow) && sleepTime > 0) {
+   kflow.sleep(500);
+   sleepTime -= 500;
+}
+if (sleepTime > 0) {
+      fs.write(filename, kflow.getHTML('.cp_borrowing_widget', true), 'a');
+      console.log('***********: 3');
+      kflow.render("images/step3.png");
+} else {
+      //fs.write(filename, kflow.getHTML('html', true), 'a');
+      console.log('***********: 3a, could not get response, EXIT');
+      kflow.render("images/step3a.png");
+}
+
+function checkedOut(totalBooks, dueType) {
+  try {
+    //console.log("checkedOut");
+    var arr = document.querySelectorAll('div.listItem');
+    var str = "";
+    for (i=0; i < arr.length; i++) {
+      var title = arr[i].querySelector('.title.title_extended a');
+      if (title == null) continue;
+      var coming_due = arr[i].querySelector('.checkedout_due_date .out');
+      if (dueType == 'coming_due') {
+        coming_due = arr[i].querySelector('.checkedout_due_date .coming_due');
+      }
+      if (dueType == 'overdue') {
+        coming_due = arr[i].querySelector('.checkedout_due_date .overdue');
+      }
+      if (coming_due == null) {
+        continue;
+      }
+      totalBooks++;
+      str += '<tr><td>' + totalBooks;
+      str += '</td><td><a href="http://ottawa.bibliocommons.com' + title.getAttribute('href') + '">' + title.textContent + "</a> ";
+      var ext = arr[i].querySelector('.title_extension');
+      if (ext != null) {
+        str += ext.textContent;
+      }
+      var format = arr[i].querySelector('.subTitle');
+      if (format != null) {
+        str += format.textContent;
+      }
+      str += "</td><td>";
+      format = arr[i].querySelector('.format');
+      if (format != null) {
+        str += format.textContent;
+      }
+      str += "</td><td nowrap>";
+      format = arr[i].querySelector('.callNumber');
+      if (format != null) {
+        str += format.textContent;
+      }
+      str += "</td><td nowrap>";
+
+      if (coming_due != null) {
+        str += coming_due.textContent;
+      }
+      str += "</td><td nowrap>";
+      var renews = arr[i].querySelectorAll('.secondary_bib_info');
+      for (var j = 0; j < renews.length; j++) {
+        console.log("-----" + j + " " + renews[j].textContent);
+        var renewLabel = renews[j].querySelectorAll(".info_label")[1];
+        console.log("-----" + j + " " + renewLabel);
+        console.log("-----" + j + " " + (renewLabel == null ? "null" : renewLabel.textContent.trim()));
+        if (renewLabel != null && renewLabel.textContent.trim() == 'Renewed:') {
+          str += renews[j].querySelector('.text_black').textContent;
+        }
+      }
+      str += "</td></tr>\n";
+    }
+    console.log(str);
+    console.log("totalBooks 2: " + totalBooks);
+    return [totalBooks, str];
+  } catch (err) {
+    loadInProgress = false;
+    console.log("err loading page: " + err.stack);
+    console.log();
+    return err.stack;
+  }
+  //  console.log("totalBooks 3: " + totalBooks);
+}
+
+if (!String.prototype.trim) {
+  String.prototype.trim=function(){return this.replace(/^\s+|\s+$/g, '');};
+}
+
+function itemsToRenew(dateStr) {
+  try {
+    console.log("itemsToRenew");
+    var arr = document.querySelectorAll('div.listItem');
+    console.log("date: " + dateStr);
+    console.log("arr: " + arr.length);
+    var renewStr = "";
+    var renewBooks = [];
+    var renew = false;
+    for (i=0; i < arr.length; i++) {
+      var dueDate = arr[i].querySelector('.checkedout_due_date .coming_due');
+      if (dueDate != null) console.log("|" + dueDate + "|");
+      if (dueDate != null) console.log("|" + dueDate.textContent.trim() + "|");
+      if (dueDate != null && dueDate.textContent.trim() == dateStr) {
+        var oneDue = "<tr><td>" + arr[i].querySelector('.title_extended a') + "</td></tr>";
+        console.log(oneDue);
+        renewStr += oneDue;
+        var oneHref = arr[i].querySelector('.single_circ_action').getAttribute('href');
+        //$(arr[i]).parent().click();
+        renewBooks.push(oneHref);
+        renew = true;
+      }
+    }
+    if (renew) {
+      console.log(renewStr);
+      //document.querySelector("input.submit_button.renew").click();
+    }
+    return [renewBooks, renewStr];
+  } catch (err) {
+    console.log("err loading page: " + err.stack);
+    console.log();
+  }
+}
+function renew(kflowId, dateStr, itemHref) {
+  try {
+    console.log("renew");
+    var arr = document.querySelectorAll('div.listItem');
+    console.log("date: " + dateStr);
+    console.log("arr: " + arr.length);
+    var renew = false;
+    for (i=0; i < arr.length; i++) {
+      var dueDate = arr[i].querySelector('.checkedout_due_date .coming_due');
+      if (dueDate != null) console.log("|" + dueDate + "|");
+      if (dueDate != null) console.log("|" + dueDate.textContent.trim() + "|");
+      if (dueDate != null && dueDate.textContent.trim() == dateStr) {
+        var oneDue = "<tr><td>" + arr[i].querySelector('.title_extended a') + "</td></tr>";
+        console.log(oneDue);
+        var oneHref = arr[i].querySelector('.single_circ_action').getAttribute('href');
+        if (oneHref != itemHref) {
+          continue;
+        }
+        var submit = function(listItem, html) {
+            var oneHref2 = listItem.querySelector('.single_circ_action').getAttribute('href');
+            console.log(oneHref2 + "   " + html.html);
+            console.log(oneHref2 + " html:   " + listItem.innerHTML);
+            //var overlay = $(listItem).find('.cp_inline_overlay.animate.fade');
+            var overlay = $(listItem).find('.checkedout_holds');
+            if (overlay.size() == 0) {
+                var checkedoutHolds_elem = $( "<div class='checkedout_holds'/>" );
+                $(listItem).append(checkedoutHolds_elem);
+                overlay = $(listItem).find('.checkedout_holds');
+            }
+            console.log("overlay size: " +listItem);
+            console.log("overlay: " +overlay);
+            console.log("overlay size: " +overlay.size());
+            console.log("overlay size: " +$('.cp_inline_overlay').size());
+            console.log("overlay: " +overlay.html());
+            overlay.html(html.html);
+            console.log("overlay 2: " +overlay.html());
+            overlay.html(html.html);
+            var form = overlay.find('form');
+            console.log('renew url 0: ' + form);
+            console.log('renew url 0: ' + form.attr('action'));
+            console.log('renew url 0: ' + $.datajs('start_renew_progress').attr("action"));
+            console.log('renew url : ' + $.datajs('start_renew_progress').attr("action") + ".json");
+            console.log('renew serialized data: ' + $.datajs('start_renew_progress').serialize());
+            $.ajax({
+                dataType: 'json',
+                inline_messaging: 1,
+                url: form.attr("action"),
+                data: form.serialize(),
+                success: function(e) {
+                  console.log("success: " + JSON.stringify(e));
+                  window.callPhantom({kflowId : kflowId, status: 'success', data: e});
+                },
+                failure: function(e) {
+                  console.log("failure: " + JSON.stringify(e));
+                  window.callPhantom({kflowId : kflowId, status: 'failure', data: e});
+                }
+            });
+        };
+        $.ajax({
+                    url: oneHref,
+                    dataType: "json",
+                    show_spinner: 0
+                }).done($.proxy(submit, null, arr[i])); 
+        //$(arr[i]).click();
+        
+        //console.log("checked " + arr[i].querySelector('.itemsCheckbox').checked);
+        //arr[i].querySelector('.itemsCheckbox').checked = true;
+        //console.log("checked " + arr[i].querySelector('.itemsCheckbox').checked);
+      }
+    }
+  } catch (err) {
+    console.log("err loading page: " + err.stack);
+    console.log();
+  }
+}
+
+function date2Str2(d) {
+  var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var date = d.getDate();
+  var month = months[d.getMonth()];
+  var year = d.getFullYear();
+  return month + ' ' + (date < 10 ? ('0' + date) : date) + ', ' + year;
+}
+
+function todayStr() {
+  return date2Str2(new Date());
+}
+
+function tomorrowStr() {
+  return date2Str2(new Date(new Date().getTime() + 24*60*60*1000));
+}
+
+      fs.write(filename, '\n<h3>Overdue</h3><table>\n', 'a');
+      checkedOutRet = kflow.evaluate(checkedOut, totalBooks, 'overdue');
+      console.log("overdue out: " + checkedOutRet);
+      totalBooks = checkedOutRet[0];
+      fs.write(filename, checkedOutRet[1] + "\n</table>\n", 'a');
+      console.log("totalBooks: " + totalBooks);
+
+kflow.knysa_open("http://ottawa.bibliocommons.com/checkedout/index/coming_due?display_quantity=25&page=0")
+
+kflow.sleep(100);
+if (ready(kflow)) {
+      console.log('***********: 4b');
+      kflow.render("images/step4b.png");
+} else {
+      //fs.write(filename, kflow.getHTML('html', true), 'a');
+      console.log('***********: 4ba, END');
+      kflow.render("images/step4iba.png");
+      //phantom.exit();
+}
+
+    dateStr = todayStr();
+    if (tomorrow) {
+      dateStr = tomorrowStr();
+    }
+    renewed = kflow.evaluate(itemsToRenew, dateStr);
+    kflow.render("images/step410.png");
+    renewedStr = renewed[1];
+    renewBooks = renewed[0];
+    console.log("renewed: " + renewedStr);
+
+  ix = 0;
+  renewResult = '';
+  while (ix++ < renewBooks.length) {
+    oneRenewResult = kflow.knysa_evaluate(renew, kflow.getId(), dateStr, renewBooks[ix-1]);
+    console.log('oneRenewResult: ' + (ix-1) + ' ' + renewBooks[ix-1] + ' ' + oneRenewResult);
+    renewResult += '<tr><td>' + ix + "</td><td>" + renewBooks[ix-1] + '</td><td>' + JSON.stringify(oneRenewResult.data) + '</td></tr>\n';
+    kflow.render("images/step410_renew_result_" + (ix-1) + ".png");
+    //fs.write(filename, kflow.getHTML('a.drawer_button'), 'a');
+    //kflow.click('a.drawer_button');
+  }
+    fs.write(filename, "Renewed:<table>\n" + renewResult + "\n</table>\n", 'a');
+
+function renewResponse(kflow) {
+  //if (renewedStr == "") {
+  //  return true;
+  //}
+  console.log('***********: 414');
+  kflow.render("images/step414.png");
+  var ready = kflow.evaluate(function() {
+    try {
+    var l=document.querySelector('a.drawer_button');
+    var e=document.createEvent('HTMLEvents');
+    e.initEvent('click',true,true);
+    l.dispatchEvent(e);
+    var clickElement = function (el){
+    var ev = document.createEvent("MouseEvent");
+      ev.initMouseEvent(
+        "click",
+        true /* bubble */, true /* cancelable */,
+        window, null,
+        0, 0, 0, 0, /* coordinates */
+        false, false, false, false, /* modifier keys */
+        0 /*left*/, null
+      );
+      el.dispatchEvent(ev);
+    };
+    clickElement(document.querySelector('a.drawer_button'));
+    console.log('///////// clicked a.drawer_button');
+    $.datajs("drawer-trigger").click();
+    //$.datajs("drawer-trigger").cp_drawer();
+    $.datajs("drawer-element").addClass("active");
+    //$.datajs("borrowing-widget").cp_borrowing_widget();
+    var replace_templates = function(i) {
+      console.log('user_stats');
+        $.datajs("borrowing-widget").find("[data-section]").each(function() {
+                var n = $(this),
+                    s = $("#" + n.data("template"));
+                if (s.length) {
+                    var o = $.extend(i, {
+                            stale: 0
+                        }),   
+                        r = Handlebars.compile(s.html()),
+                        l = r(o); 
+                    if (l.trim().length > 0) {
+                        var c = $(l).hide().toggleClass("stale_state", 1).data("template", n.data("template"));
+                        n.fadeOut(200, function() {
+                            n.replaceWith(c), c.fadeIn(200)
+                        })    
+                    } else n.empty().attr("class", "")
+                }     
+            }
+        );
+    };
+
+   var n = $.ajax({
+                url: "/user_stats/borrowing",
+                show_spinner: !1,
+                dataType: "json"
+            });
+   var e = t.BC_MD5_USER,
+                a = "borrowing_info";
+   n.done(function(t) {
+      var out = "";
+      for (var i in t) {
+        out += i + ": " + t[i] + "; ";
+      }
+
+      console.log('user_stats: ' + out);
+                    BCLocalCache.set({
+                        key: a,
+                        secret: e,
+                        value: t
+                    })
+                }), n.done(replace_templates);
+
+    //$.fn.cp_borrowing_widget.Constructor($.datajs("drawer-element"));
+    //$.datajs("drawer-element").trigger("show.bc.drawer");
+    //$.datajs("borrowing-widget").cp_borrowing_widget();
+    var arr = document.querySelectorAll(".majorMessageBlock");
+    var topMsg = document.querySelectorAll(".top_message");
+    var arr2 = document.querySelectorAll("a.list-group-item");
+    for (var i = 0; i < arr2.length; i++) {
+      if (arr2[i].getAttribute('href') == '/holds') {
+        return true;
+      }
+    }
+    return false;
+    //return arr.length > 0 || (topMsg.length > 0 && topMsg[0].textContent.trim() == 'Successfully renewed checked out item(s).');
+    } catch (err) {
+      console.log('errrrrrrrrrrrr: ' + err.stack);
+    }
+  });
+  return ready;
+}
+
+sleepTime = 10100;
+while (!renewResponse(kflow) && sleepTime > 0) {
+   kflow.sleep(100);
+   sleepTime -= 100;
+}
+
+        kflow.render("images/step_renew_response.png");
+if (sleepTime > 0) {
+      if (kflow.exists('.majorMessageBlock')) {
+        fs.write(filename, kflow.getHTML('.majorMessageBlock', true), 'a');
+        console.log('***********: 41');
+        kflow.render("images/step41.png");
+      } else { if (kflow.exists('.top_message')) {
+        fs.write(filename, kflow.getHTML('.top_message'), 'a');
+        console.log('***********: 411');
+        kflow.render("images/step411.png");
+      }
+      if (kflow.exists('.cp_borrowing_widget')) {
+        fs.write(filename, kflow.getHTML('.cp_borrowing_widget'), 'a');
+        console.log('***********: 413');
+        kflow.render("images/step413.png");
+      }
+}
+} else {
+        fs.write(filename, kflow.getHTML('.cp_borrowing_widget'), 'a');
+        console.log('***********: 412');
+        kflow.render("images/step412.png");
+
+}
+
+kflow.knysa_open("http://ottawa.bibliocommons.com/checkedout/index/coming_due?display_quantity=25&page=0")
+
+sleepTime = 10100;
+while (!ready(kflow) && sleepTime > 0) {
+   kflow.sleep(100);
+   sleepTime -= 100;
+}
+
+if (sleepTime > 0) {
+      console.log('***********: 4');
+      kflow.render("images/step4.png");
+} else {
+      //fs.write(filename, kflow.getHTML('html', true), 'a');
+      console.log('***********: 4a');
+      kflow.render("images/step4a.png");
+}
+numPages = kflow.evaluate(function() {
+    try {
+      var numPages = 1;
+      var pageOptions = document.querySelectorAll('.pageJump > select > option');
+      for (var i=0; i < pageOptions.length; i++) {
+        var num = parseInt(pageOptions[i].getAttribute("value"));
+        if (num && num > numPages) {
+          numPages = num;;
+        }
+      }
+      return numPages;
+    } catch (err) {
+      console.log("err loading page: " + err.stack);
+      console.log();
+    }
+});
+      fs.write(filename, '\n<h3>Due soon</h3><table>\n', 'a');
+      checkedOutRet = kflow.evaluate(checkedOut, totalBooks, 'coming_due');
+      console.log("coming due: " + checkedOutRet);
+      totalBooks = checkedOutRet[0];
+      fs.write(filename, checkedOutRet[1], 'a');
+      console.log("totalBooks coming due: " + totalBooks);
+  kflow.knysa_open("http://ottawa.bibliocommons.com/checkedout/index/out?display_quantity=100&page=0")
+      kflow.render("images/step5a.png");
+      fs.write(filename, '\n\n</table>\n<h3>Due later</h3><table>\n', 'a');
+      checkedOutRet = kflow.evaluate(checkedOut, totalBooks, 'due');
+      console.log("checked out: " + checkedOutRet);
+      totalBooks = checkedOutRet[0];
+      fs.write(filename, checkedOutRet[1], 'a');
+      console.log("totalBooks: " + totalBooks);
+ix = 1;
+  while (ix++ < numPages) {
+    kflow.knysa_open("http://ottawa.bibliocommons.com/checkedout?page=" + (ix-1));
+      checkedOutRet = kflow.evaluate(checkedOut, totalBooks);
+      totalBooks = checkedOutRet[0];
+      fs.write(filename, checkedOutRet[1], 'a');
+  }
+      fs.write(filename, '\n</table>\nTotal checked out: ' + totalBooks + '<table>\n', 'a');
+
+  kflow.knysa_open("http://ottawa.bibliocommons.com/holds/index/active?display_quantity=25&page=0");
+
+function processOnHold(ttlHlds) {
+  try {
+    var arr = document.querySelectorAll('div.listItem');
+    var str = "";
+    for (i=0; i < arr.length; i++) {
+      var title = arr[i].querySelector('.title_extended a');
+      if (title == null) continue;
+      ttlHlds++;
+
+      str += '<tr><td>' + ttlHlds + '</td><td><a href="http://ottawa.bibliocommons.com';
+      str += title.getAttribute('href') + '">' + title.textContent + "</a> ";
+
+      var ext = arr[i].querySelector('.title_extension');
+      if (ext != null) {
+        str += ext.textContent;
+      }
+      var format = arr[i].querySelector('.subTitle');
+      if (format != null) {
+        str += format.textContent;
+      }
+      str += "</td><td>";
+      format = arr[i].querySelector('.format');
+      if (format != null) {
+        str += format.textContent;
+      }
+      str += "</td><td>";
+      format = arr[i].querySelector('.callNumber');
+      if (format != null) {
+        str += format.textContent;
+      }
+      str += "</td><td nowrap>";
+
+      var onhold = arr[i].querySelector('.hold_status');
+      //for (var j = 0; j < onholds.length; j++) {
+//        if (onholds[j].querySelector(".label").textContent == 'Status:') {
+//          str += onholds[j].querySelector('.value').textContent;
+//        }
+ //     }
+      if (onhold != null) {
+        str += onhold.getAttribute('class').substring(11);
+      }
+      str += "</td><td nowrap>";
+      //for (var j = 0; j < onholds.length; j++) {
+//        if (onholds[j].querySelector(".label").textContent == 'Pick Up by:') {
+//          str += onholds[j].querySelector('.value').textContent;
+//        }
+ //     }
+      var pickupDateStr = arr[i].querySelector('.secondary_bib_info').textContent;
+      if (pickupDateStr != null) {
+        var pos1 = pickupDateStr.indexOf('Pickup by:'); 
+        var pos2 = pickupDateStr.indexOf('Pickup at:'); 
+        if (pos1 > 0 && pos2 > 0) {
+          str += pickupDateStr.substring(pos1 + 10, pos2).trim();
+        }
+      }
+      str += "</td></tr>\n";
+    }
+    console.log(str);
+    return [ttlHlds, str];
+  } catch (err) {
+    console.log("err loading page: " + err.stack);
+    console.log();
+  }
+}
+
+  numPages = kflow.evaluate(function() {
+    try {
+      var numPages = -1;
+      var pageOptions = document.querySelectorAll('.pageJump > select > option');
+      for (var i=0; i < pageOptions.length; i++) {
+        var num = parseInt(pageOptions[i].getAttribute("value"));
+        if (num && num > numPages) {
+          numPages = num;;
+        }
+      }
+      return numPages;
+    } catch (err) {
+      console.log("err loading page: " + err.stack);
+      console.log();
+    }
+  });
+    onholdRet = kflow.evaluate(processOnHold, totalHolds);
+    totalHolds = onholdRet[0];
+    fs.write(filename, onholdRet[1], 'a');
+  ix = 1;
+  while (ix++ < numPages) {
+    kflow.knysa_open('http://ottawa.bibliocommons.com/holds/index/active?display_quantity=25&page=' + (ix-1));
+      onholdRet = kflow.evaluate(processOnHold, totalHolds);
+      totalHolds = onholdRet[0];
+      fs.write(filename, onholdRet[1], 'a');
+  }
+      fs.write(filename, '\n</table>\nTotal onhold: ' + totalHolds, 'a');
+      fs.write(filename, '\n</body></html>\n', 'a');
+
+  kflow.knysa_open("http://ottawa.bibliocommons.com/user/logout");

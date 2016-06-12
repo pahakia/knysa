@@ -1,0 +1,10 @@
+var kynsa = require('./knysa');
+var system = require('system');
+var sleepTime = 1;
+if (system.args.length >= 2) {
+  sleepTime = system.args[1];
+}
+console.log(new Date());
+console.log('sleep ' + sleepTime + ' second(s)');
+kflow.sleep(sleepTime * 1000);
+console.log(new Date());

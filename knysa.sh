@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 if [ $# -lt 1 ] ; then
     echo "Usage: $0 knysa-script.kns ..."
@@ -6,7 +6,6 @@ if [ $# -lt 1 ] ; then
 fi
 knysa_sh=$0;
 base_dir=$(dirname $knysa_sh)
-echo $base_dir
 js_script=$1;
 cp $base_dir/knysa.js $(dirname $js_script)/
 cp $base_dir/clientutils.js $(dirname $js_script)/

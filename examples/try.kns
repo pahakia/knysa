@@ -1,0 +1,59 @@
+var system = require('system');
+var password, accountNo;
+var month;
+
+//system.stdout.write('Account #: ');
+//accountNo = system.stdin.readLine().trim();
+
+//system.stdout.write('password: ');
+//password = system.stdin.readLine().trim();
+
+month = 1;
+console.log(new Date);
+kflow.sleep(month * 1000);
+if (month == 4) {
+    console.log(new Date);
+} else {
+    console.log('=========== ' + new Date);
+}
+while (true) {
+    try {
+        console.log('////// ['+month+'] '+new Date);
+        if (month >= 10) {
+            break;
+        }
+        month++;
+    } finally {
+        console.log('////// ['+month+'] '+new Date);
+        if (month >= 10) {
+           month += 10000;
+        }
+    }
+}
+
+console.log('month=' + month);
+
+try {
+  throw new Error('hello');
+} catch (err) {
+  console.log("*****11******* " + err + ' ' + err.stack);
+}
+
+try {
+  throw new Error('hello2k');
+} catch (err) {
+  console.log("************ " + err + ' ' + err.stack);
+} finally {
+  console.log('finale');
+}
+try {
+  try {
+     throw new Error('hello3k');
+  } finally {
+     console.log('finale3k');
+  }
+} catch (err) {
+  console.log("************ " + err + ' ' + err.stack);
+} finally {
+  console.log('finale out');
+}

@@ -1,0 +1,16 @@
+var kynsa = require('./knysa');
+var system = require('system');
+var sleepTime = 1;
+// ****** variables must be declared at the beginning ******
+var ret;
+if (system.args.length >= 2) {
+  sleepTime = system.args[1];
+}
+function knysa_f1(kflow, num) {
+   setTimeout(function() {
+      kflow.resume(num * 100);
+   }, 1000);
+}
+console.log(new Date());
+ret = knysa_f1(kflow, 3);
+console.log(ret);

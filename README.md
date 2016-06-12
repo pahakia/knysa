@@ -1,8 +1,8 @@
 # knysa
 Knysa is a javascript library that enables you to write phantomjs scripts in "sync" style, i.e. without callbacks.
 
-## Targeted Audience
-Developers who has experience with phantomjs and casperjs.
+## Target Audience
+Developer who has experience with phantomjs and casperjs.
 
 ## Precondition
 phantomjs must be installed and phantomjs command is available on PATH.

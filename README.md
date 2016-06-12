@@ -8,6 +8,7 @@ Developers who has experience with phantomjs and casperjs.
 phantomjs must be installed and phantomjs command is available on PATH.
 
 ## Usage
+```
 Clone the repo and write your own knysa script (say my.kns) and you can then run the script:
    $PATH_TO_KNYSA_DIR/knysa.sh my.kns [additional args to my.kns]
 
@@ -22,8 +23,10 @@ Such asynchronous function must resume the execution as follows:
    kflowId is essential, it can be obtained by kflow.getId() and passed to the knysa_evaluate function.
    The data passed into callPhantom including kflowId will be assigned to ret in the following:
       var ret = kflow.knysa_evaluate(myFunc, kflow.getId()); 
+```
 
 ## API
+```
 1. implicit variable: kflow
 2. functions on kflow:
    asynchronous ones:
@@ -45,12 +48,15 @@ Such asynchronous function must resume the execution as follows:
       ret = knysa_my_func(...)
    object call is supported, i.e. myObj.knysa_my_func(...)
 5. all variables must be declared at the beginning, including the variable err in catch(err).
+```
 
 ## Examples
+```
 check out examples under examples directory. 
 1. sleep.kns: kflow.sleep()
 2. resume.kns: suspend and resume execution
 3. opl.kns: knysa_open, knysa_evaluate, sleep, exists, click, getHTML, fill as well as flow
    constructs: while/if/else
 4. try.kns: try/catch/finally and while/break and their mixture
+```
 

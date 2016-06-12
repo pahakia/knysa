@@ -59,7 +59,14 @@ Such asynchronous function must resume the execution as follows:
 5. all variables must be declared at the beginning, including the variable err in catch(err).
 ```
 ## Unsupported
+```
 1. 'else if' is not supported.
+```
+
+## Tested Versions
+```
+1. phantomjs-1.9.7-macosx
+```
 
 ## Examples
 ```

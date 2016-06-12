@@ -49,6 +49,8 @@ Such asynchronous function must resume the execution as follows:
    object call is supported, i.e. myObj.knysa_my_func(...)
 5. all variables must be declared at the beginning, including the variable err in catch(err).
 ```
+## Unsupported
+1. 'else if' is not supported.
 
 ## Examples
 ```

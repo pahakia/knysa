@@ -1,15 +1,7 @@
+/***************************************************************************
 The MIT License (MIT)
 
 Copyright (c) 2016 Bo Zou (boxzou@yahoo.com)
-Part of source code is Copyright Nicolas Perriault, Joyent, Inc. and other
-Node contributors. 
-
-The software under UglifyJS is
-   Copyright 2010 (c) Mihai Bazon <mihai.bazon@gmail.com>
-
-clientutils.js is
-   Copyright (c) 2011-2012 Nicolas Perriault
-   Part of it maybe Copyright Joyent, Inc. and other Node contributors. 
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,3 +20,23 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+*****************************************************************************/
+
+var knycon = require('./knycon');
+var system = require('system');
+var fs = require('fs');
+
+if (system.args.length < 2) {
+    console.log('phantomjs run-knycon.js script.js');
+    phantom.exit();
+}
+
+var script = system.args[1];
+try {
+  var code = knycon.convert(script);
+  console.log(code);
+  phantom.exit();
+} catch (err) {
+  console.log(err);
+  phantom.exit(1);
+}

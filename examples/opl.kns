@@ -60,10 +60,16 @@ kflow.fill('form.loginForm.left',
 console.log('***********: 1');
 kflow.render("images/step1.png");
 
-kflow.click('input[value="Log In"]');
+console.log('***********: 1 date ' + new Date());
+kflow.knysa_click('input[value="Log In"]');
 
-console.log('***********: 2');
-kflow.render("images/step2.png");
+console.log('***********: 2 ' + new Date());
+if (kflow.exists('a.drawer_button')) {
+    console.log('***********: 2 ' + kflow.getHTML('a.drawer_button'));
+    kflow.render("images/step2.png");
+    kflow.click('a.drawer_button');
+    kflow.render("images/step2_drawer.png");
+}
 
 function ready(kflow) {
   var ready = kflow.evaluate(function() {
@@ -357,9 +363,9 @@ function renewResponse(kflow) {
       );
       el.dispatchEvent(ev);
     };
-    clickElement(document.querySelector('a.drawer_button'));
-    console.log('///////// clicked a.drawer_button');
-    $.datajs("drawer-trigger").click();
+   // clickElement(document.querySelector('a.drawer_button'));
+    // console.log('///////// clicked a.drawer_button');
+  //  $.datajs("drawer-trigger").click();
     //$.datajs("drawer-trigger").cp_drawer();
     $.datajs("drawer-element").addClass("active");
     //$.datajs("borrowing-widget").cp_borrowing_widget();

@@ -1,0 +1,9 @@
+var ix, jx;
+ix = -1;
+while (++ix < 2) {
+  jx = -1;
+  while (++jx < 5) {
+    console.log(ix + ' * ' + jx + ' = ' + ix * jx);
+  }
+}
+console.log(ix + ' * ' + jx + ' = ' + ix * jx);

@@ -346,19 +346,46 @@ function Flow(flowData, knysa, pid) {
   }
   this.exists = exists;
 
+  var mouseEvent = function mouseEvent(type, selector) {
+    console.log("Mouse event '" + type + "' on selector: " + selector, "debug");
+    if (!this.exists(selector)) {
+        throw new Error("Cannot dispatch " + type + " event on nonexistent selector: " + selector);
+    }
+    if (this.callUtils("mouseEvent", type, selector)) {
+        return true;
+    }
+    // fallback onto native QtWebKit mouse events
+    try {
+        return this.mouse.processEvent(type, selector);
+    } catch (e) {
+        console.log("Couldn't emulate '" + type + "' event on " + selector + ": " + e);
+    }
+    return false;
+  };
+  this.mouseEvent = mouseEvent;
+
   var click = function click(selector) {  // depends on jquery
-    return knysa.page.evaluate(function(selector) {
-      try {
-        // console.log("click selector: " + selector);
-        return $(selector).click();
-      } catch (err) {
-        console.log("error clicking " + selector + ":" + err.stack);
-        return err.stack;
-      }
+    var success = this.mouseEvent('mousedown', selector) && this.mouseEvent('mouseup', selector);
+    success = success && this.mouseEvent('click', selector);
+    this.evaluate(function(selector) {
+        var element = __utils__.findOne(selector);
+        if (element) {
+            element.focus();
+        }
     }, selector);
+    return success;
   }
   this.click = click;
-  this.knysa_click = click;
+
+  var knysa_click = function knysa_click(selector) {
+      knysa.page.onLoadFinished = function(status) {
+          //console.log('click status = ' + status);
+          knysa.page.onLoadFinished = null;
+          resume();
+      }
+      this.click(selector);
+  }
+  this.knysa_click = knysa_click;
 
   var render = function render(path) {
     knysa.page.render(path);
@@ -383,8 +410,7 @@ function Flow(flowData, knysa, pid) {
     } else if (fillResults && fillResults.exception) {
         throw new Error("Unable to fill form: " + fillResults.exception);
     } else if (fillResults.errors.length > 0) {
-        throw new Error(f('Errors encountered while filling form: %s',
-                              fillResults.errors.join('; ')));
+        throw new Error('Errors encountered while filling form: ' + fillResults.errors.join('; '));
     }
 
     // File uploads
@@ -443,6 +469,16 @@ function Flow(flowData, knysa, pid) {
   };
   this.fillNames = fillNames;
   this.fill = fillNames;
+
+  var knysa_fill = function knysa_fill(formSelector, vals) {
+      knysa.page.onLoadFinished = function(status) {
+          // console.log('status = ' + status);
+          knysa.page.onLoadFinished = null;
+          resume();
+      }
+      this.fill(formSelector, vals, true);
+  };
+  this.knysa_fill = knysa_fill;
   
   var getHTML = function getHTML(selector, outer) {
     "use strict";

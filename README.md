@@ -1,5 +1,5 @@
 # knysa
-Knysa is a javascript library that enables you to write phantomjs scripts in "sync" style, i.e. without callbacks.
+knysa is a javascript library that enables you to write phantomjs scripts in "sync" style, i.e. without callbacks.
 
 ## Target Audience
 Developer who has experience with phantomjs and casperjs.
@@ -33,7 +33,9 @@ Such asynchronous function must resume the execution as follows:
       a. knysa_open: execution will be resumed when page finishes loading.
       b. knysa_evaluate: same as synchronous version (sandboxed) except execution is suspended
          until window.callPhantom is called as in Usage above.
-      c. sleep: milliseconds.  execution will be resumed after the sleep.
+      c. knysa_click: click triggers navigation, execution will be resumed when response page finishes loading.
+      d. knysa_fill: fill and submit form, execution will be resumed when response page finishes loading
+      e. sleep: milliseconds.  execution will be resumed after the sleep.
    synchronous ones:
       a. getID: return the kflow ID
       b. evaludate: phantomjs evaludate (sandboxed)
@@ -42,7 +44,7 @@ Such asynchronous function must resume the execution as follows:
 3. asynchronous statements (function calls prefixed with 'knysa_') are supported inside:
       a. try/catch/finally blocks
       b. if/else/while blocks
-   they are NOT supported inside 'for' block.
+   they are NOT supported inside 'for' block or 'switch/case' block.
 4. asynchronous (knysa_) function calls must be on separate line, either
       knysa_my_func(...); or
       ret = knysa_my_func(...)

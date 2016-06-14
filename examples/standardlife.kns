@@ -1,0 +1,186 @@
+var system = require('system');
+var fs = require('fs');
+var username, password;
+var coverages;
+var dependents, claims, claim, tt, href;
+var idx, jdx, i;
+var today, thisDay, thisMonth, thisYear, dtstr, basedir, headStr;
+var challenge, answer;
+
+system.stdout.write('Username #: ');
+username = system.stdin.readLine().trim();
+
+system.stdout.write('password: ');
+password = system.stdin.readLine().trim();
+
+function padNum(num) {
+  return num < 10 ? ('0' + num) : num
+}
+
+function date2Str(year, month, day) {
+  return year + '-' + padNum(month+1) + '-' + padNum(day);
+}
+
+today = new Date();
+thisDay = today.getDate(); // [1-31]
+thisMonth = today.getMonth(); // [0-11]
+thisYear = today.getFullYear(); // 4 digits
+dtstr = date2Str(thisYear, thisMonth, thisDay);
+basedir = "standardlife";
+filename = 'standardlife/standardlife-' + dtstr + '.html';
+headStr = '<html><body><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />\n' +
+'<style type="text/css">table { border-spacing:0px; border-collapse:collapse;} \n' +
+'table td {border:1px solid #999;}</style>\n';
+fs.write(filename, headStr);
+
+kflow.knysa_open("https://viproom.standardlife.ca/portal/open/login.do?language=1");
+
+  console.log('***********: 0');
+  kflow.render("images/step0.png");
+
+  kflow.fill('form#loginForm', { 'username' : username }, false);
+
+  console.log('***********: 1');
+  kflow.render("images/step1.png");
+
+  kflow.knysa_click('a[id="login"]');
+
+  console.log('***********: 2');
+  kflow.render("images/step2.png");
+
+  challenge = kflow.evaluate(function() {
+      try {
+        var opts = document.querySelectorAll('form#challengeQuestionForm');
+        for (var i = 0; i < opts.length; i++) {
+          return opts[i].textContent.trim();
+        }
+        return null;
+      } catch (err) {
+        return err.stack;
+      }
+  });
+  if (challenge != null) {
+      system.stdout.write(challenge + ' ********************:');
+      answer = system.stdin.readLine().trim();
+      kflow.fill('form[id="challengeQuestionForm"]', { 'answer' : answer }, false);
+      kflow.knysa_click('a[id="login"]');
+  }
+
+  console.log('***********: 21');
+  kflow.render("images/step21.png");
+
+  kflow.fill('form#loginForm', { 'j_password' : password }, false);
+
+  console.log('***********: 22');
+  kflow.render("images/step22.png");
+
+  kflow.knysa_click('a[id="login"]');
+
+  console.log('***********: 3');
+  kflow.render("images/step3.png");
+
+  // Group Life and Health
+  kflow.knysa_open("https://viproom.standardlife.ca/portal/portal/redirectApplication.do?pro=COLL&nbr=1");
+
+  console.log('***********: 4');
+  kflow.render("images/step4.png");
+
+  kflow.knysa_click('a[onmouseover="self.status=\'Your file\';return true"]');
+
+  console.log('***********: 5');
+  kflow.render("images/step5.png");
+
+  kflow.knysa_click('img[src="/glhdocs/images/en/en_menu_benefitusage.gif"]');
+
+  console.log('***********: 51');
+  kflow.render("images/step51.png");
+
+  try {
+    coverages = kflow.evaluate(function() {
+      try {
+        var opts = document.querySelectorAll('#coverageSelection option');
+        var vals = [];
+        for (var i = 0; i < opts.length; i++) {
+          vals[i] = opts[i].getAttribute('value');
+        }
+        return vals;
+      } catch (err) {
+        return err.stack;
+      }
+    });
+    dependents = kflow.evaluate(function() {
+      try {
+        var opts = document.querySelectorAll('#dependentSelection option');
+        var vals = [];
+        for (var i = 0; i < opts.length; i++) {
+          vals[i] = opts[i].getAttribute('value');
+        }
+        return vals;
+      } catch (err) {
+        return err.stack;
+      }
+    });
+    console.log("============= coverages: " + coverages);
+    console.log("============= dependents: " + dependents);
+    jdx = -1;
+    while (++jdx < dependents.length) {
+      idx = -1;
+      while (++idx < coverages.length) {
+        coverage = coverages[idx];
+        dependent = dependents[jdx];
+        kflow.fill('form[name="GLHFormMain"]', { 'benefitUsage.coverageSelection' : coverage,
+                                 'benefitUsage.dependentSelection': dependent }, false);
+        kflow.knysa_click('input[id="coverageSubmit"]');
+        console.log('***********: ' + coverages[idx] + ":" + dependents[jdx]);
+        kflow.render("images/" + coverages[idx] + "-" + dependents[jdx] + ".png");
+        fs.write(filename, "<hr>" + kflow.getHTML('#page-content', true), 'a');
+      }
+    }
+    // claims tab
+    kflow.knysa_click('img[src="/glhdocs/images/en/en_menu_06.gif"]');
+
+
+    console.log('***********: claims 6');
+    kflow.render("images/step claims.png");
+    kflow.fill('form[name="GLHFormMain"]', { 'periodCode' : 'TWELVE_MONTHS' }, false);
+    kflow.knysa_click('input[name="claimsinfo.submit.button.name"]');
+    console.log('***********: claims 6 after post');
+    kflow.render("images/step claims after.png");
+
+    fs.write(filename, "<hr>" + kflow.getHTML('.claimsforconvertedmemberpart'), 'a');
+    claims = kflow.evaluate(function() {
+            try {
+              var opts = document.querySelectorAll('.CLAIMSTABLE > tbody > tr > td > a');
+              var vals = [];
+              for (var i = 0; i < opts.length; i++) {
+                  console.log(opts[i]);
+                  var tt = opts[i].parentNode.parentNode.textContent.replace(/\s+/g, ' ').replace(/\//g, '-').replace(/^\s+/, '').replace(/\s+$/, '');
+                  vals[i] = [tt, "__DIVIDER__"+ opts[i].getAttribute('href')];
+                  console.log(vals[i]);
+              }
+              console.log("vals: " + vals);
+              return vals;
+            } catch (err) {
+              return err.stack;
+            }
+    });
+    console.log("claims: " + claims);
+    i = -1;
+    while (++i < claims.length) {
+        claim = claims[i];
+        tt = claim[0];
+        href = claim[1];
+        if (!fs.exists('standardlife/' + tt + '.pdf')) {
+            kflow.download(href,  'standardlife/' + tt + '.pdf' );
+        }
+    }
+
+    kflow.knysa_click('a[id="secure-access"]');
+
+    console.log('***********: out');
+    kflow.render("images/step-out.png");
+
+    fs.write(filename, '\n</body></html>\n', 'a');
+  } catch (err) {
+    console.log(err.stack);
+  }

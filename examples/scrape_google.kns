@@ -1,0 +1,25 @@
+var links = [];
+var phLinks = [];
+function getLinks() {
+    var links = document.querySelectorAll('h3.r a');
+    return Array.prototype.map.call(links, function(e) {
+        return e.getAttribute('href');
+    });
+}
+
+kflow.knysa_open('http://google.com/');
+
+kflow.knysa_fill('form[action="/search"]', { q: 'casperjs' });
+kflow.render('images/scrape_1.png');
+links = kflow.evaluate(getLinks);
+
+kflow.knysa_fill('form[action="/search"]', { q: 'phantomjs' });
+kflow.render('images/scrape_2.png');
+phLinks = kflow.evaluate(getLinks);
+
+links = links.concat(phLinks);
+
+console.log(links.length + ' links found:');
+console.log(' - ' + links.join('\n - '));
+phantom.exit();
+

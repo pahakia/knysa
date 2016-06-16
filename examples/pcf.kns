@@ -1,0 +1,210 @@
+var system = require('system');
+var accountNo, password, challenge, answer, sleepTime;
+var months, month, year, accountCode, data, stdt, fileUri, authToken, name, err, onem;
+var MONTHS = {'Jan':'01', 'Feb':'02', 'Mar':'03', 'Apr':'04', 'May':'05', 'Jun':'06',
+        'Jul':'07', 'Aug':'08', 'Sep':'09', 'Oct':'10', 'Nov':'11', 'Dec':'12'};
+var i = 0;
+
+system.stdout.write('Account #: ');
+accountNo = system.stdin.readLine().trim();
+
+system.stdout.write('password: ');
+password = system.stdin.readLine().trim();
+
+kflow.knysa_open("https://www.txn.banking.pcfinancial.ca/ebm-resources/public/client/web/index.html#/signon");
+kflow.evaluate(function(accountNo, password) {
+    try {
+        var card = document.querySelector('.card-entry * input[type="text"]');
+        var pass = document.querySelector('.password-entry * input[type="password"]');
+        $('.card-entry * input[type="text"]').val(accountNo);
+        $('.card-entry * input[type="text"]').trigger('change');
+        $('.password-entry * input[type="password"]').val(password);
+        $('.password-entry * input[type="password"]').trigger('change');
+        $('button[type="submit"]').click();
+
+        //console.log('html 0: ' + card.outerHTML);
+
+        return card.outerHTML + " " + pass.outerHTML;
+    } catch (err) {
+        console.log('exception: ' + err.stack);
+    }
+}, accountNo, password);
+while (kflow.exists('.card-entry')) {
+    kflow.sleep(100);
+}
+kflow.sleep(100);
+try {
+    if (kflow.exists('ui-button[aria-label="Remind me later"]')) {
+        kflow.click('ui-button[aria-label="Remind me later"]');
+    }
+    kflow.render("images/pcf11.png");
+    sleepTime = 10000;
+    while (!kflow.exists('.user-info') && sleepTime > 0) {
+      sleepTime -= 100;
+      kflow.sleep(100);
+    }
+    if (sleepTime > 0) {
+         challenge = kflow.knysa_evaluate(function(kflowId) {
+            try {
+                var authToken = sessionStorage.dev_pcf_session_token;
+                authToken = authToken.substring(1, authToken.length-1);
+                $.ajax({
+                    headers: {'Content-type':"application/vnd.api+json",'X-Auth-Token':authToken},
+                    method: 'GET',
+                    url: '/ebm-anp/api/v1/json/sessions',
+                    //url: '/ebm-resources/public/client/web/index.html',
+                    success: function(e, textStatus, request) {
+                        var token = request.getResponseHeader('X-Auth-Token');
+                        //console.log("success: ************** " + JSON.stringify(e));
+                        //console.log("success: ************** " + token);
+                        e.kflowId = kflowId;
+                        window.callPhantom(e);
+                    },
+                    error: function(e) {
+                        console.log("failure: &&&&&&&&&&&&& " + JSON.stringify(e));
+                        e.kflowId = flowId;
+                        e.kflowError = true;
+                        window.callPhantom(e);
+                    }
+                });
+            } catch (err) {
+                console.log('mymod: ' + err.stack);
+            }
+         }, kflow.getId());
+         console.log('***********: first page');
+         kflow.render("images/step_first.png");
+    } else {
+         kflow.render("images/step_first_timeout.png");
+         throw new Error('waiting for first page timeout');
+    }
+    kflow.render("images/pcf2.png");
+    challenge = kflow.evaluate(function() {
+        try {
+            var opts = document.querySelectorAll('form[name="RandomPVQForm"]');
+            for (var i = 0; i < opts.length; i++) {
+                return opts[i].textContent.trim();
+            }
+            return null;
+        } catch (err) {
+            return err.stack;
+        }
+    });
+    if (challenge != null && challenge.indexOf('answer:') > 0) {
+        system.stdout.write(challenge + ' ********************:');
+        answer = system.stdin.readLine().trim();
+        kflow.fill('form[name="RandomPVQForm"]', { 'answer' : answer }, false);
+        kflow.click('input[value="continue"]');
+        kflow.sleep(500);
+    }
+    console.log('***********: after PVQ');
+    kflow.render("images/step_pvq.png");
+    console.log('click: ' + kflow.click('a[href="#/accounts/online-statements"]'));
+
+    sleepTime = 10000;
+    while (!kflow.exists('.account-selector-estatements') && sleepTime > 0) {
+        sleepTime -= 100;
+        kflow.sleep(100);
+    }
+    if (sleepTime > 0) {
+        console.log('***********: pdf: ' + sleepTime);
+        kflow.render("images/step-pdf.png");
+        try {
+            accountNo = kflow.evaluate(function() {
+                try {
+                    var ano = $('.account-selector-estatements * select').val();
+                    return ano;
+                } catch (err) {
+                    console.log('get account error: ' + err.stack);
+                }
+            });
+            //"/ebm-ai/api/v1/json/eStatements
+        } catch (err) {
+            console.log("get read to download pdf error: " + err.stack);
+        }
+    } else {
+         kflow.render("images/step-pdf_timeout.png");
+         throw new Error('waiting for pdf page timeout');
+    }
+    months = kflow.evaluate(function() {
+        try {
+            var opts = $('.online-statements').find('.pdf-icon .ui-button');
+            var vals = [];
+            for (var i = 0; i < opts.length; i++) {
+                vals[i] = opts[i].getAttribute('aria-label');
+            }
+            return vals;
+        } catch (err) {
+            return err.stack;
+        }
+    });
+    accountCode = kflow.evaluate(function() {
+        try {
+            var ano = $('.account-selector-estatements * select').val();
+            return ano;
+        } catch (err) {
+            return err.stack;
+        }
+    });
+    console.log('months: ' + months);
+    console.log('accountCode: ' + accountCode);
+    while (i < months.length) {
+        onem = months[i].split(' ');
+        month = MONTHS[onem[0]];
+        year = onem[1];
+        stdt = '{"eStatement":{"month":"' + month + '","year":"' + year +
+            '","fileUri":null,"accountId":"' + accountCode + '"}}';
+        console.log('stdt: ' + stdt);
+        
+        data = kflow.knysa_evaluate(function(stdata, kflowId) {
+            try {
+                var authToken = sessionStorage.dev_pcf_session_token;
+                authToken = authToken.substring(1, authToken.length-1);
+                $.ajax({
+                    headers: {'Content-type':"application/vnd.api+json",'X-Auth-Token':authToken},
+                    method: 'POST',
+                    url: '/ebm-ai/api/v1/json/eStatements',
+                    data: stdata,
+                    success: function(e, textStatus, request) {
+                        try {
+                            console.log("success pdf post: ************** " + JSON.stringify(e));
+                            e.authToken = authToken;
+                            e.kflowId = kflowId;
+                            console.log("success pdf post: ************** " + JSON.stringify(e));
+                            window.callPhantom(e);
+                        } catch (err) {
+                            console.log('callPhantom error: ' + err.stack);
+                            e.err = err.stack;
+                            e.kflowId = flowId;
+                            e.kflowError = true;
+                            window.callPhantom(e);
+                        }
+                    },
+                    error: function(e) {
+                        console.log("failure pdf post: &&&&&&&&&&&&& " + JSON.stringify(e));
+                        e.kflowId = flowId;
+                        e.kflowError = true;
+                        window.callPhantom(e);
+                    }
+                });
+            } catch (err) {
+                return err.stack;
+            }
+        }, stdt, kflow.getId());
+        try {
+            fileUri = data.fileUri;
+            authToken = data.authToken;
+            name = data.year + "" + data.month;
+            console.log('download file: ' + name + ', ' + JSON.stringify(data));
+            kflow.download('https://www.txn.banking.pcfinancial.ca/ebm-ai/api/v1/json/eStatements/file/' + fileUri,
+                name + '.pdf', "POST", {'X-Auth-Token':authToken});
+        } catch (err) {
+          console.log('download error: ' + err.stack);
+        }
+        i++;
+    }
+} finally {
+    console.log('sign out');
+    kflow.click('ui-button.signout');
+    kflow.sleep(500);
+}
+

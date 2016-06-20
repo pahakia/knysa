@@ -1,0 +1,208 @@
+var system = require('system');
+var fs = require('fs');
+var cu = require('./clientutils').create({});
+var MONTHS = {'Jan':'01', 'Feb':'02', 'Mar':'03', 'Apr':'04', 'May':'05', 'Jun':'06',
+              'Jul':'07', 'Aug':'08', 'Sep':'09', 'Oct':'10', 'Nov':'11', 'Dec':'12'};
+var accountNo, password, authToken;
+var i, html, front, back, chid;
+var cheque, chequeName;
+
+system.stdout.write('Account #: ');
+accountNo = system.stdin.readLine().trim();
+
+system.stdout.write('password: ');
+password = system.stdin.readLine().trim();
+
+//kflow.page.onConfirm = function(msg) {
+//    return msg != null && msg.indexOf('You will have to re-sign-in from the') > 0 ? false : true;
+//}
+
+
+kflow.knysa_open("https://www.txn.banking.pcfinancial.ca/ebm-resources/public/client/web/index.html#/signon");
+kflow.evaluate(function(accountNo, password) {
+    try {
+        var card = document.querySelector('.card-entry * input[type="text"]');
+        var pass = document.querySelector('.password-entry * input[type="password"]');
+        $('.card-entry * input[type="text"]').val(accountNo);
+        $('.card-entry * input[type="text"]').trigger('change');
+        $('.password-entry * input[type="password"]').val(password);
+        $('.password-entry * input[type="password"]').trigger('change');
+        $('button[type="submit"]').click();
+
+        //console.log('html 0: ' + card.outerHTML);
+
+        return card.outerHTML + " " + pass.outerHTML;
+    } catch (err) {
+        console.log('exception: ' + err.stack);
+    }
+}, accountNo, password);
+while (kflow.exists('.card-entry')) {
+    kflow.sleep(100);
+}
+kflow.sleep(100);
+try {
+    if (kflow.exists('ui-button[aria-label="Remind me later"]')) {
+        kflow.click('ui-button[aria-label="Remind me later"]');
+    }
+    kflow.render("images/pcf11.png");
+    sleepTime = 10000;
+    while (!kflow.exists('.user-info') && sleepTime > 0) {
+        sleepTime -= 100;
+        kflow.sleep(100);
+    }
+    if (sleepTime <= 0) {
+        kflow.render("images/step_first_timeout.png");
+        throw new Error('waiting for first page timeout');
+    }
+    kflow.render("images/pcf2.png");
+    challenge = kflow.evaluate(function() {
+        try {
+            var opts = document.querySelectorAll('form[name="RandomPVQForm"]');
+            for (var i = 0; i < opts.length; i++) {
+                return opts[i].textContent.trim();
+            }
+            return null;
+        } catch (err) {
+            return err.stack;
+        }
+    });
+    if (challenge != null && challenge.indexOf('answer:') > 0) {
+        system.stdout.write(challenge + ' ********************:');
+        answer = system.stdin.readLine().trim();
+        kflow.fill('form[name="RandomPVQForm"]', { 'answer' : answer }, false);
+        kflow.click('input[value="continue"]');
+        kflow.sleep(500);
+    }
+    console.log('***********: after PVQ');
+    kflow.render("images/step_pvq.png");
+
+    sleepTime = 5000;
+    while (!kflow.exists('.DEPOSIT * .account * a') && sleepTime > 0) {
+        sleepTime -= 100;
+        kflow.sleep(100);
+    }
+    if (sleepTime <= 0) {
+        kflow.render("images/step_deposit_timeout.png");
+        throw new Error('waiting for deposit page timeout');
+    }
+    
+    kflow.evaluate(function() {
+        $('.DEPOSIT * .account * a:first').click();
+    });
+    console.log('***********: to click deposit account');
+    kflow.render("images/step_deposit.png");
+
+    sleepTime = 5000;
+    while (!kflow.exists('.account-selector') && sleepTime > 0) {
+        sleepTime -= 100;
+        kflow.sleep(100);
+    }
+    if (sleepTime <= 0) {
+        kflow.render("images/step_account_selector_timeout.png");
+        throw new Error('waiting for account selector page timeout');
+    }
+
+    console.log('***********: step get details before click');
+    kflow.render("images/step-get-details-before-click.png");
+    kflow.evaluate(function() {
+        try {
+            var year = $('.range * .ui-year select:first');
+            year.val((parseInt(year.val()) - 1) + "");
+            year.trigger('change');
+            $('.type * select').val('cheque');
+            $('.type * select').trigger('change');
+            $('.custom-search-button').click();
+        } catch (err) {
+            console.log('click Get Details button error: ' + err.stack);
+        }
+    });
+    kflow.render("images/step-get-details-after-click.png");
+
+    sleepTime = 5000;
+    while (!kflow.evaluate(function() {
+             return $('td.transactions').length > 0 &&
+                    $('td.transactions').length == $('td.transactions a').length;
+          }) && sleepTime > 0) {
+        sleepTime -= 100;
+        kflow.sleep(100);
+    }
+    if (sleepTime <= 0) {
+        kflow.render("images/step_transactions_timeout.png");
+        throw new Error('waiting for transactions page timeout');
+    }
+
+    kflow.render("images/step-cheques.png");
+    console.log('cheques: ' + sleepTime);
+    try {
+        cheques = kflow.evaluate(function() {
+            try {
+                var opts = $('td.transactions a');
+                var vals = [];
+                for (var i = 0; i < opts.length; i++) {
+                    var parent = $(opts[i]).parent().parent();
+                    var amount = parent.find('td.debit').text().trim();
+                    var date = parent.find('td.date').text().trim();
+                    var chNo = $(opts[i]).text().trim().replace(/\s+/g, '');
+                    vals[i] = [$(opts[i]).attr('href'), chNo, date, amount];
+                }
+                return vals;
+            } catch (err) {
+                console.log(err.stack);
+            }
+        });
+        console.log("============= cheques: " + cheques);
+            authToken = kflow.evaluate(function() {
+                try {
+                    var authToken = sessionStorage.dev_pcf_session_token;
+                    authToken = authToken.substring(1, authToken.length-1);
+                    return authToken;
+                } catch (err) {
+                    return err.stack;
+                }
+            });
+        i = -1;
+        while (++i < cheques.length) {
+            cheque = cheques[i]; 
+            console.log('iiiiiiiiiii ' + i + ' ' + cheque);
+            chequeName = cheque[1] + '-' + cheque[2] + '-' + cheque[3];
+            kflow.open('https://www.txn.banking.pcfinancial.ca/ebm-resources/public/client/web/index.html' + cheque[0]);
+            sleepTime = 2000;
+            while (!kflow.evaluate(function(chNo) {
+                    return $('.panel-large li:first div:last').text().trim().replace(/ /, '#') == chNo;
+                 }, cheque[1]) && sleepTime > 0) {
+                sleepTime -= 100;
+                kflow.sleep(100);
+            }
+            if (sleepTime <= 0) {
+                kflow.render("images/step_cheque_timeout " + chequeName + ".png");
+                //throw new Error('waiting for check timeout: ' + chequeName);
+            }
+            kflow.sleep(sleepTime + 200);
+            front = kflow.getElementAttribute('img.front', 'src') || '';
+            back = kflow.getElementAttribute('img.back', 'src') || '';
+            console.log(chequeName + " " + sleepTime);
+            //console.log(chequeName + " front: " + front);
+            //console.log(chequeName + " back: " + back);
+            if (front.match(/^data:image\/jpeg;base64,/)) {
+               fs.write("pcf-cheques/" + chequeName + ' front.jpeg', cu.decode(front.substring('data:image\/jpeg;base64,'.length)), 'wb');
+            }
+            if (back.match(/^data:image\/jpeg;base64,/)) {
+               fs.write("pcf-cheques/" + chequeName + ' back.jpeg', cu.decode(back.substring('data:image\/jpeg;base64,'.length)), 'wb');
+            }
+            //kflow.download(front, "pcf-cheques/" + chequeName + ' front.jpeg');
+            //kflow.download(back, "pcf-cheques/" + chequeName + ' back.jpeg');
+            kflow.sleep(5000);
+            chid = cheque[0].replace(/#\/accounts\/cheques\/(.*)\/details/, "$1");
+            console.log('download cheque pdf: ' + chequeName + ", href=" + chid);
+            kflow.download('https://www.txn.banking.pcfinancial.ca//ebm-ai/api/v1/json/cheques/pdf/' + chid,
+                           "pcf-cheques/" + chequeName + '.pdf', "POST", {'X-Auth-Token':authToken}); 
+        }
+    } catch (err) {
+        console.log(err.stack);
+    }
+} finally {
+    console.log('sign out');
+    kflow.click('ui-button.signout');
+    kflow.sleep(500);
+    kflow.render("images/pcf-signout.png");
+}

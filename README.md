@@ -12,8 +12,8 @@ phantomjs must be installed and phantomjs command is available on PATH.
 Clone the repo and write your own knysa script (say my.kns) and you can then run the script:
    $PATH_TO_KNYSA_DIR/knysa.sh my.kns [additional args to my.kns]
 
-Asynchronous function must be prefixed with 'knysa_' which informs knysa to suspend execution.
-Such asynchronous function must resume the execution as follows:
+Asynchronous-wait(async-wait) function must be prefixed with 'knysa_' which informs knysa to suspend execution.
+Such function must resume the execution as follows:
 1. outside browser (i.e. not in a knysa_evaluate function), do:
       kflow.resume(data);
    data will be assigned to ret in the following:
@@ -29,23 +29,27 @@ Such asynchronous function must resume the execution as follows:
 ```
 1. implicit variable: kflow
 2. functions on kflow:
-   asynchronous ones:
-      a. knysa_open: execution will be resumed when page finishes loading.
-      b. knysa_evaluate: same as synchronous version (sandboxed) except execution is suspended
-         until window.callPhantom is called as in Usage above.
-      c. knysa_click: click triggers navigation, execution will be resumed when response page finishes loading.
-      d. knysa_fill: fill and submit form, execution will be resumed when response page finishes loading
-      e. sleep: milliseconds.  execution will be resumed after the sleep.
+   async-wait ones:
+      a. knysa_open(url): navigate to page, execution will be resumed when new page finishes loading.
+      b. knysa_evaluate(func[, arg0, arg1, ...]): same as synchronous version (sandboxed) except execution is
+         suspended until window.callPhantom is called as in Usage above.
+      c. knysa_click(selector): click triggers navigation, execution will be resumed when new page finishes
+         loading.
+      d. knysa_fill(formSelector, values): fill and submit form, execution will be resumed when new page 
+         finishes loading
+      e. sleep(milliseconds):  execution will be resumed after the sleep.
    synchronous ones:
-      a. getID: return the kflow ID
-      b. evaludate: phantomjs evaludate (sandboxed)
-      c. render: phantomjs render
-      d. exists, click, getHTML, fill, download: taken from casperjs
-3. asynchronous statements (function calls prefixed with 'knysa_') are supported inside:
+      a. getID(): return the kflow ID
+      b. evaludate(func[,arg0, arg1,...]): phantomjs evaluate (sandboxed)
+      c. render(path): phantomjs render
+      d. open(url): navigate to a URL
+      d. exists(selector), click(selector), getHTML(selector), fill(formSelector, values, submitOrNot),
+         download(url, path, method, data), getELementAttr(selector, attrName): taken from casperjs
+3. async-wait function calls are supported inside:
       a. try/catch/finally blocks
       b. if/else/while blocks
-   they are NOT supported inside 'for' block or 'switch/case' block.
-4. asynchronous (knysa_) function calls must be on separate line, either
+   async-wait function calls are NOT supported inside 'for' block or 'switch/case' block.
+4. async-wait function calls must be on separate line, either
       knysa_my_func(...); or
       ret = knysa_my_func(...)
    object call is supported, i.e. myObj.knysa_my_func(...)
@@ -59,6 +63,7 @@ Such asynchronous function must resume the execution as follows:
             val = knysa_my_func(...);
             var1 = a1 * val;
 5. all variables must be declared at the beginning, including the variable err in catch(err).
+   note: kflow object can not be used in variable declarations.
 ```
 ## Unsupported
 ```

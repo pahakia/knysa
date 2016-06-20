@@ -320,7 +320,7 @@ function Flow(flowData, knysa, pid) {
   }
   this.fork = fork;
   
-  var open = function open(url) {
+  var knysa_open = function knysa_open(url) {
     // console.log('knysa.page: ' + knysa.page + ", url=" + url);
     knysa.page.open(url, function(status) {
       // console.log(url + ': ' + status);
@@ -331,7 +331,13 @@ function Flow(flowData, knysa, pid) {
       }
     });
   }
-  this.knysa_open = open;
+  this.knysa_open = knysa_open;
+  
+  var open = function open(url) {
+    // console.log('knysa.page: ' + knysa.page + ", url=" + url);
+    knysa.page.open(url);
+  }
+  this.open = open;
   
   var exists = function exists(selector) {
     return knysa.page.evaluate(function(selector) {
@@ -495,6 +501,13 @@ function Flow(flowData, knysa, pid) {
   };
   this.getHTML = getHTML;
   
+  var getElementAttr = function getElementAttr(selector, attribute) {
+    return this.evaluate(function _evaluate(selector, attribute) {
+        return __utils__.findOne(selector).getAttribute(attribute);
+    }, selector, attribute);
+  };
+  this.getElementAttribute = this.getElementAttr = getElementAttr;
+
   var evaluate = function evaluate(fn, context) {
     this.injectClientUtils();
     if (arguments.length === 1) {

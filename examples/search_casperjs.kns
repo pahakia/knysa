@@ -1,0 +1,19 @@
+var links = [];
+var i, num, isFound;
+function getLinks() {
+    var links = document.querySelectorAll('h3.r a');
+    return Array.prototype.map.call(links, function(e) {
+        return e.getAttribute('href');
+    });
+}
+kflow.knysa_open('http://google.com/');
+kflow.knysa_fill('form[action="/search"]', { q: 'casperjs' });
+links = kflow.evaluate(getLinks);
+i = -1;
+while (++i < links.length) {
+    kflow.knysa_open(links[i]);
+    isFound = kflow.evaluate(function() {
+        return document.querySelector('html').textContent.indexOf('casperjs') >= 0;
+    });
+    console.log('casperjs is found on ' + links[i] + ':' + isFound);
+}

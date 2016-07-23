@@ -486,6 +486,21 @@ function Flow(flowData, knysa, pid) {
   };
   this.knysa_fill = knysa_fill;
   
+  var switchToChildFrame = function switchToChildFrame(frameName) {
+      knysa.page.switchToChildFrame(frameName);
+  }
+  this.switchToChildFrame = switchToChildFrame;
+
+  var switchToParentFrame = function switchToParentFrame() {
+      knysa.page.switchToParentFrame();
+  }
+  this.switchToParentFrame = switchToParentFrame;
+
+  var currentFrameName = function currentFrameName() {
+      return knysa.page.currentFrameName();
+  }
+  this.currentFrameName = currentFrameName;
+
   var getHTML = function getHTML(selector, outer) {
     "use strict";
     if (!selector) {

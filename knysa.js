@@ -109,9 +109,23 @@ function Flow(flowData, knysa, pid) {
           throw new Error("no while for break: " + broken + ", scope=" + oldScope + ", methods: " + methods);
         }
         if (scope.match(/^n[0-9]+_while/)) {
+          if (broken.match(/^n[0-9]_break/)) {
+            broken = null;
+            scopeEnd(scope, method, "endwhile");
+            return;
+          }
           broken = null;
-          scopeEnd(scope, method, "endwhile");
-          return;
+          for (var i = index - 1; i >= 0; i--) {
+            var m2 = methods[i];
+            if (m2 == scope) {
+              scopes.pop();
+              index = i;
+              run();
+              return;
+            }
+          }
+          throw new Error("endwhile reached but while not found: " + method + ", scope=" + scope
+            + ", methods: " + methods);
         }
         for (var i = index + 1; i < methods.length; i++) {
           var m2 = methods[i];
@@ -162,7 +176,7 @@ function Flow(flowData, knysa, pid) {
     var method = methods[index];
     var scope = currentScope();
     //console.log("index: " + index + ", method: " + method + ", scope: " + scope + ", methods: " + methods);
-    if (method.match(/^n\d+_break/)) {
+    if (method.match(/^n\d+_(break|continue)/)) {
       // console.log('break: ' + method);
       broken = method;
       handleBreak(method, scope);

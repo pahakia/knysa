@@ -243,6 +243,12 @@ this.convertHelper = function convertHelper(body, orig_stats) {
             var breakName = 'n' + stat_index + "_break";
             var breakFunc = ast_assignment(ast_dot('this', breakName), ast_function(null, []));
             body.push(ast_stat(breakFunc));
+        } else if (ast_is_continue(stmt)) {
+            this.flush(body);
+            stat_index++;
+            var breakName = 'n' + stat_index + "_continue";
+            var breakFunc = ast_assignment(ast_dot('this', breakName), ast_function(null, []));
+            body.push(ast_stat(breakFunc));
         } else if (ast_is_defun(stmt)) {
             this.flush(body);
             body.push(stmt);
@@ -378,6 +384,9 @@ this.convertHelper = function convertHelper(body, orig_stats) {
     }
     function ast_is_break(stmt) {
         return stmt[0] == 'break';
+    }
+    function ast_is_continue(stmt) {
+        return stmt[0] == 'continue';
     }
     function ast_is_defun(stmt) {
         return stmt[0] == 'defun';

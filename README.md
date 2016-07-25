@@ -80,7 +80,7 @@ resume execution.  Such function must resume the execution as follows:
 ```
 check out examples under examples directory. 
 1. sleep.kns: kflow.sleep()
-2. resume.kns: suspend and resume execution
+2. resume.kns: suspend and resume execution, return value from async-await function
 3. opl.kns: knysa_open, knysa_evaluate, sleep, exists, click, getHTML, fill as well as flow
    constructs: while/if/else
 4. try.kns: try/catch/finally and while/break and their mixture

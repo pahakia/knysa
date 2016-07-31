@@ -803,7 +803,7 @@
                 logValue = new Array(value.length + 1).join("*");
             }
 
-            this.log('Set "' + field.getAttribute('name') + '" field value to ' + logValue, "debug");
+            //this.log('Set "' + field.getAttribute('name') + '" field value to ' + logValue, "debug");
 
             try {
                 field.focus();

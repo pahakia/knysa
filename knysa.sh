@@ -18,4 +18,33 @@ if [ $? -ne 0 ]; then
     exit
 fi
 shift
-phantomjs --ssl-protocol=any $js_script.js $@
+if [ $# -eq 0 ]; then
+  phantomjs --web-security=no --ssl-protocol=any $js_script.js
+fi
+if [ $# -eq 1 ]; then
+  phantomjs --web-security=no --ssl-protocol=any $js_script.js "$1"
+fi
+if [ $# -eq 2 ]; then
+  phantomjs --web-security=no --ssl-protocol=any $js_script.js "$1" "$2"
+fi
+if [ $# -eq 3 ]; then
+  phantomjs --web-security=no --ssl-protocol=any $js_script.js "$1" "$2" "$3"
+fi
+if [ $# -eq 4 ]; then
+  phantomjs --web-security=no --ssl-protocol=any $js_script.js "$1" "$2" "$3" "$4"
+fi
+if [ $# -eq 5 ]; then
+  phantomjs --web-security=no --ssl-protocol=any $js_script.js "$1" "$2" "$3" "$4" "$5"
+fi
+if [ $# -eq 6 ]; then
+  phantomjs --web-security=no --ssl-protocol=any $js_script.js "$1" "$2" "$3" "$4" "$5" "$6"
+fi
+if [ $# -eq 7 ]; then
+  phantomjs --web-security=no --ssl-protocol=any $js_script.js "$1" "$2" "$3" "$4" "$5" "$6" "$7"
+fi
+if [ $# -eq 8 ]; then
+  phantomjs --web-security=no --ssl-protocol=any $js_script.js "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8"
+fi
+if [ $# -eq 9 ]; then
+  phantomjs --web-security=no --ssl-protocol=any $js_script.js "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9"
+fi

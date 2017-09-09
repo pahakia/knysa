@@ -109,7 +109,7 @@ function Flow(flowData, knysa, pid) {
           throw new Error("no while for break: " + broken + ", scope=" + oldScope + ", methods: " + methods);
         }
         if (scope.match(/^n[0-9]+_while/)) {
-          if (broken.match(/^n[0-9]_break/)) {
+          if (broken.match(/^n[0-9]+_break/)) {
             broken = null;
             scopeEnd(scope, method, "endwhile");
             return;

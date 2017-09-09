@@ -17,14 +17,16 @@ if (month == 4) {
     console.log('=========== ' + new Date);
 }
 while (true) {
+    kflow.sleep(300);
     try {
         console.log('////// ['+month+'] '+new Date);
         if (month >= 10) {
             break;
         }
+        console.log('//////1 ['+month+'] '+new Date);
         month++;
     } finally {
-        console.log('////// ['+month+'] '+new Date);
+        console.log('//////2 ['+month+'] '+new Date);
         if (month >= 10) {
            month += 10000;
         }
